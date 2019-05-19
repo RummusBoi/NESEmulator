@@ -1,4 +1,6 @@
 from RAM import *
+
+
 class CPU:
     def __init__(self):
         self.A = bytearray(1)
