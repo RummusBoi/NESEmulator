@@ -40,3 +40,8 @@ class ROM:
             
     def setup_flags(self):
         self.FLAGS = [bin(self.read_bytes(i, 1)[0]) for i in range (6, 12)]
+
+    def write_bytes(self, start, data: bytearray):
+        #should not be used under normal circumstances
+        #TODO this function is unusable
+        self.data[start:start + len(data)] = data
