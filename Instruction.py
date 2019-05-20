@@ -13,12 +13,16 @@ class Instruction(ABC):
 
 #lambda functions for getting value from memory, sorted by (d,x : d,y : a,x : a,y : (d,x) : (d),y)
 getMemArray = [
-    lambda cpu, nextbytes: (nextbytes[0][0] + cpu.X) % 256,
-    lambda cpu, nextbytes: (nextbytes[0][0] + cpu.Y) % 256,
-    lambda cpu, nextbytes: (nextbytes[0][0] + cpu.X),
-    lambda cpu, nextbytes: (nextbytes[0][0] + cpu.Y),
+    #
     lambda cpu, nextbytes: (cpu.ram.read_bytes(getMemArray[0](cpu, nextbytes), 1) + cpu.ram.read_bytes((nextbytes[0][0] + cpu.X + 1) % 256, 1)) * 256,
-    lambda cpu, nextbytes: (cpu.ram.read_bytes(nextbytes[0][0], 1) + cpu.ram.read_bytes((nextbytes[0][0] + 1) % 256, 1) * 256 + cpu.Y)
+    lambda cpu, nextbytes: (nextbytes[0][0]),
+    lambda cpu, nextbytes: (cpu.PC - 1), #TODO might not work #TODO assumes that the program counter has been incremented
+    lambda cpu, nextbytes: (nextbytes[0][0] << 8 + nextbytes[1][0]),
+    lambda cpu, nextbytes: (cpu.ram.read_bytes(nextbytes[0][0], 1) + cpu.ram.read_bytes((nextbytes[0][0] + 1) % 256, 1) * 256 + cpu.Y),
+    lambda cpu, nextbytes: (nextbytes[0][0] + cpu.X) % 256,
+    lambda cpu, nextbytes: (nextbytes[0][0] + cpu.Y),
+    lambda cpu, nextbytes: (nextbytes[0][0] + cpu.X)
+
     #TODO reorder these such they fit the correct opcodes.
     #TODO add the remaining addressing modes, might not need (d,y) mode for ALU.
     ]
