@@ -30,7 +30,7 @@ def main ():
 
     instr = ADC()
 
-    cpu.ram.write_bytes(0, bytearray([3, 2]))
+    cpu.ram.write_bytes(0, bytearray([5, 7]))
 
     print("Before execution: " + str(cpu.A))
     cpu.executeProgram (rom.read_bytes(16, 4))
