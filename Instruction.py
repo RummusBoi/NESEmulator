@@ -74,36 +74,35 @@ def ALUMemHelper(f, opcode: bytes, cpu: CPU.CPU):
     #save result to accumulator
     cpu.A = result    
 
-
 #ALU instructions. Instructions whose least significant bits are (01)
 
 class ORA(Instruction):
-    def execute(self, opcode: bytes, cpu: CPU): #TODO might need additional arguments, such as cpu.P
+    def execute(self, opcode: bytes, cpu: CPU): 
         ALUMemHelper (lambda a, b: a | b, opcode, cpu)
 
 class ADC(Instruction):
-    def execute(self, opcode: bytes, cpu: CPU): #TODO might need additional arguments, such as cpu.P
+    def execute(self, opcode: bytes, cpu: CPU): 
         ALUMemHelper (lambda a, b: a + b, opcode, cpu)
 
 class AND(Instruction):
-    def execute(self, opcode: bytes, cpu: CPU): #TODO might need additional arguments, such as cpu.P
+    def execute(self, opcode: bytes, cpu: CPU): 
         ALUMemHelper (lambda a, b: a & b, opcode, cpu)
         
 class EOR(Instruction):
-    def execute(self, opcode: bytes, cpu: CPU): #TODO might need additional arguments, such as cpu.P
+    def execute(self, opcode: bytes, cpu: CPU): 
         ALUMemHelper (lambda a, b: a ^ b, opcode, cpu)
         
 class STA(Instruction):
-    def execute(self, opcode: bytes, cpu: CPU): #TODO might need additional arguments, such as cpu.P
+    def execute(self, opcode: bytes, cpu: CPU): 
         code = (opcode & 0b11100) >> 2
         cpu.ram.write_bytes(getMemArray[code], cpu.A)
     
 class LDA(Instruction):
-    def execute(self, opcode: bytes, cpu: CPU): #TODO might need additional arguments, such as cpu.P
+    def execute(self, opcode: bytes, cpu: CPU): 
         ALUMemHelper (lambda a, b: b, opcode, cpu)
 
 class CMP(Instruction):
-    def execute(self, opcode: bytes, cpu: CPU): #TODO might need additional arguments, such as cpu.P
+    def execute(self, opcode: bytes, cpu: CPU): 
         code = (opcode & 0b11100) >> 2
         nextbytes = cpu.instructions[cpu.PC + 1:cpu.PC + 1 + 2]
 
@@ -119,6 +118,9 @@ class CMP(Instruction):
                 cpu.P = (cpu.P & 0b11111100) | 0b01
         
 class LDA(Instruction):
-    def execute(self, opcode: bytes, cpu: CPU): #TODO might need additional arguments, such as cpu.P
+    def execute(self, opcode: bytes, cpu: CPU): 
         carryflag = 1
         ALUMemHelper (lambda a, b: a - b - (1 - carryflag), opcode, cpu)
+
+# ------------------------- END OF ALU INSTRUCTIONS ------------------------- #
+
