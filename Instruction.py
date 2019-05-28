@@ -3,6 +3,8 @@ from RAM import *
 from ROM import *
 import CPU
 
+bitch = 2
+
 class Instruction(ABC):
 
     @abstractmethod
@@ -10,6 +12,7 @@ class Instruction(ABC):
         pass
 
 #lambda functions for getting value from memory, sorted by 
+
 # (Indirect, X) 
 # Zero page 
 # Immediate  
@@ -124,3 +127,14 @@ class LDA(Instruction):
 
 # ------------------------- END OF ALU INSTRUCTIONS ------------------------- #
 
+# ------------------------- START OF CONTROL INSTRUCTIONS ------------------------- #
+
+# memory function for getting memory content for control operations. Ordering is the following:
+
+getMemArray = [
+    lambda cpu, nextbytes: [(cpu.PC + 1), 2],
+    lambda cpu, nextbytes: [(nextbytes[0]), 2],
+    lambda cpu, nextbytes: [0x0, 2],
+    lambda cpu, nextbytes: [(nextbytes[0] << 8 + nextbytes[1][0]), 3],
+    lambda cpu, nextbytes: [,2]
+]

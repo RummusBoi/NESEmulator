@@ -2,7 +2,6 @@ from RAM import *
 from ROM import *
 import Instruction
 
-
 class CPU:
     def __init__(self):
         self.A = bytearray(1)

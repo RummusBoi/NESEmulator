@@ -18,8 +18,6 @@ def main ():
     for i in rom.read_bytes(0, 100):
         print(i)
 
-    
-
     ram = RAM()
 
     cpu = CPU()
