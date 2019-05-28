@@ -16,6 +16,7 @@ def main ():
     rom = ROM()
     rom.read_data(args.rom_path)
     for i in rom.read_bytes(0, 100):
+        
         print(i)
 
     ram = RAM()
