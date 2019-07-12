@@ -12,6 +12,8 @@ class CPU:
         
         #Status flags used by the alu. Only 6 bits are used
         self.P = bytearray(1) 
+
+        #CPU stack:
     
     def start_up(self, ram: RAM):
         self.A = 0
@@ -32,3 +34,12 @@ class CPU:
         while (self.PC >= 0 and self.PC < len(instructions)):
             print("Current instruction: " + str(self.PC) + " : " + str(int(instructions[self.PC])))
             instructionArr[0].execute(instructions[self.PC], self)
+    
+    def push (self, value: bytearray):
+        self.S = self.S - 1
+        ram.write_bytes(self.S, value)
+    
+    def pop (self) -> bytearray:
+        val = ram.read_bytes(self.P, 1)
+        self.P = self.P + 1
+        return val

@@ -8,7 +8,7 @@ bitch = 2
 class Instruction(ABC):
 
     @abstractmethod
-    def execute(self, opcode: bytearray, p: bytearray, ram: RAM):
+    def execute(self, opcode: bytearray, cpu: CPU):
         pass
 
 #lambda functions for getting value from memory, sorted by 
@@ -130,11 +130,251 @@ class LDA(Instruction):
 # ------------------------- START OF CONTROL INSTRUCTIONS ------------------------- #
 
 # memory function for getting memory content for control operations. Ordering is the following:
-
+#TODO this needs to return VALUE at memory location, NOT the ADDRESS
 getMemArray = [
     lambda cpu, nextbytes: [(cpu.PC + 1), 2],
     lambda cpu, nextbytes: [(nextbytes[0]), 2],
     lambda cpu, nextbytes: [0x0, 2],
     lambda cpu, nextbytes: [(nextbytes[0] << 8 + nextbytes[1][0]), 3],
-    lambda cpu, nextbytes: [,2]
+    lambda cpu, nextbytes: [0x0,2], #relative addressing mode. Will be implemented in the individual instruction cases.
+    lambda cpu, nextbytes: [(nextbytes[0] + cpu.X) % 256, 2],
+    lambda cpu, nextbytes: [0x0, 2],
+    lambda cpu, nextbytes: [(nextbytes[0] + cpu.X), 3]
 ]
+
+def CTRgetval(opcode: bytes, cpu: CPU.CPU) -> bytes:
+    code = (opcode & 0b11100) >> 2
+    nextbytes = cpu.instructions[cpu.PC + 1:cpu.PC + 1 + 2]
+    val = getMemArray[code](cpu, nextbytes)  
+    return val
+
+class PHP(Instruction):
+    def execute(self, opcode, cpu):
+        cpu.push(cpu.P)
+
+class PLP(Instruction):
+    def execute(self, opcode, cpu):
+        cpu.P = cpu.pop()
+
+class BPL(Instruction):
+    def execute(self, opcode, cpu):
+        offset = cpu.instructions(cpu.PC + 1)
+        if(cpu.P & 0b00000010 == 0b00000010):
+            cpu.PC += offset - 128
+        else:
+            cpu.PC += 2
+
+class CLC(Instruction):
+    def execute(self, opcode, cpu):
+        cpu.P = cpu.P & 0b11111110
+
+class JSR(Instruction):
+    def execute(self, opcode, cpu):
+        loc = cpu.instructions[self.pc + 1:self.pc + 3]
+        cpu.push(self.pc + 2)
+        self.pc = loc
+
+class BIT(Instruction):
+    def execute(self, opcode, cpu):
+        #find the addressing mode of this operation.
+        val = CTRgetval(opcode, cpu)
+        overflowFlag = val & 0b01000000
+        negativeFlag = val & 0b10000000
+        cpu.P = (cpu.P & overflowFlag) | overflowFlag
+        cpu.P = (cpu.P & negativeFlag) | negativeFlag
+        if(val & cpu.A):
+            cpu.P = 0b01000000 | cpu.P
+
+class BMI(Instruction):
+    def execute(self, opcode, cpu):
+        offset = cpu.instructions(cpu.PC + 1)
+        if(cpu.P & 0b10000000 == 0b10000000):
+            cpu.PC += offset - 128
+        else:
+            cpu.PC += 2
+
+class SEC(Instruction):
+    def execute(self, opcode, cpu):
+        cpu.P = cpu.P & 0b10000000
+
+class RTI(Instruction):
+    def execute(self, opcode, cpu):
+        newP = cpu.pop()
+        newPC = cpu.pop()
+        cpu.P = newP
+        cpu.PC = newPC
+    
+class PHA(Instruction):
+    def execute(self, opcode, cpu):
+        cpu.push(cpu.A)
+
+class PLA(Instruction):
+    def execute(self, opcode, cpu):
+        cpu.A = cpu.pop()
+
+class JMP(Instruction):
+    def execute(self, opcode, cpu):    
+        loc = cpu.instruction[cpu.PC + 1] << 8 + cpu.instructions[cpu.PC + 2]
+        if(opcode == 0x6C):
+            newLoc = cpu.ram.read_bytes[loc, 2]
+            loc = newLoc[0] << 8 + newLoc[1]
+        
+        cpu.PC = cpu.ram.read_bytes[loc, 1]
+
+class BVC(Instruction):
+    def execute(self, opcode, cpu):
+        offset = cpu.instructions(cpu.PC + 1)
+        if(cpu.P & 0b01000000 == 0b00000000):
+            cpu.PC += offset - 128
+        else:
+            cpu.PC += 2
+
+class CLI(Instruction):
+    def execute(self, opcode, cpu):
+        cpu.P = cpu.P & 0b11111011
+
+class RTS(Instruction):
+    def execute(self, opcode, cpu):
+        val = cpu.pop()
+        cpu.PC = val - 1
+
+class BVS(Instruction):
+    def execute(self, opcode, cpu):
+        offset = cpu.instructions[cpu.PC + 1]
+        if(cpu.P & 0b01000000 == 0b01000000):
+            cpu.PC = cpu.PC + offset
+        else:
+            cpu.PC += 2
+
+class SEI(Instruction):
+    def execute(self, opcode, cpu):
+        cpu.P = cpu.P | 0b00000100      
+
+class STY(Instruction):
+    def execute(self, opcode, cpu):
+        address = CTRgetval(opcode, cpu)
+        cpu.ram.write_bytes(address, cpu.Y)
+
+class TYA(Instruction):
+    def execute(self, opcode, cpu):
+        cpu.A = cpu.Y
+        if(A == 0):
+            cpu.P = cpu.P | 0b00000010
+        cpu.P = (cpu.P & 0b01111111) | (cpu.A & 0b10000000)
+
+
+class SHY(Instruction):
+    def execute(self, opcode, cpu):
+        raise Exception("Instruction not implemented.")
+
+class LDY(Instruction):
+    def execute(self, opcode, cpu):
+        val = cpu.ram.read_bytes(CTRgetval(opcode, cpu), 1)
+        cpu.Y = val
+        if(cpu.Y == 0):
+            cpu.P = cpu.P | 0b00000010
+        cpu.P = (cpu.P & 0b01111111) | (cpu.Y & 0b10000000)
+    
+class DEY(Instruction):
+    def execute(self, opcode, cpu):
+        cpu.Y -= 1
+        if(cpu.Y == 0):
+            cpu.p = cpu.P | 0b00000010
+        cpu.P = (cpu.P & 0b01111111) | (cpu.Y & 0b10000000)
+
+class BCC(Instruction):
+    def execute(self, opcode, cpu):
+        offset = cpu.instructions[cpu.PC + 1]
+        if(cpu.P & 0b10000000 == 0b00000000):
+            cpu.PC = cpu.PC + offset
+        else:
+            cpu.PC += 2
+
+class TAY(Instruction):
+    def execute(self, opcode, cpu):
+        cpu.Y = cpu.A
+
+        if(cpu.Y == 0):
+            cpu.P = cpu.P | 0b00000010
+        cpu.P = (cpu.P & 0b01111111) | (cpu.Y & 0b10000000)
+
+class BCS(Instruction):
+    def execute(self, opcode, cpu):
+        offset = cpu.instructions[cpu.PC + 1]
+        if(cpu.P & 0b10000000 == 0b10000000):
+            cpu.PC = cpu.PC + offset
+        else:
+            cpu.PC += 2
+
+class CLV(Instruction):
+    def execute(self, opcode, cpu):
+        cpu.P = cpu.P & 0b10111111
+
+class CPY(Instruction):
+    def execute(self, opcode, cpu):
+        val = cpu.ram.read_bytes(CTRgetval(opcode, cpu), 1)
+        if(cpu.Y >= val):
+            cpu.P = cpu.P | 0b10000000
+        else:
+            cpu.P = cpu.P & 0b01111111
+        if(cpu.Y == val):
+            cpu.P = cpu.P | 0b01000000
+        else:
+            cpu.P = cpu.P & 0b01000000
+
+class INY(Instruction):
+    def execute(self, opcode, cpu):
+        cpu.Y += 1
+
+class INX(Instruction):
+    def execute(self, opcode, cpu):
+        cpu.X += 1
+
+class BNE(Instruction):
+    def execute(self, opcode, cpu):
+        offset = cpu.instructions[cpu.PC + 1]
+        if(cpu.P & 0b00000010 == 0b00000000):
+            cpu.PC = cpu.PC + offset
+        else:
+            cpu.PC += 2
+
+class BEQ(Instruction):
+    def execute(self, opcode, cpu):
+        offset = cpu.instructions[cpu.PC + 1]
+        if(cpu.P & 0b00000010 == 0b00000010):
+            cpu.PC = cpu.PC + offset
+        else:
+            cpu.PC += 2
+
+class CLD(Instruction):
+    def execute(self, opcode, cpu):
+        cpu.P = cpu.P & 0b11110111
+
+class SED(Instruction):
+    def execute(self, opcode, cpu):
+        cpu.P = cpu.P | 0b00001000
+
+class CPX(Instruction):
+    def execute(self, opcode, cpu):
+        val = cpu.ram.read_bytes(CTRgetval(opcode, cpu), 1)
+        if(cpu.X >= val):
+            cpu.P = cpu.P | 0b10000000
+        else:
+            cpu.P = cpu.P & 0b01111111
+        if(cpu.X == val):
+            cpu.P = cpu.P | 0b01000000
+        else:
+            cpu.P = cpu.P & 0b01000000
+
+
+# ------------------------- END OF CONTROL INSTRUCTIONS ------------------------- #
+
+# ------------------------- START OF BLUE INSTRUCTIONS ------------------------- #
+
+#reuses the getMemArray from control instruction, since the memory access
+#is similar.
+
+class ASL(Instruction):
+    def execute(self, opcode, cpu):
+        val = cpu.ram.read_bytes(CTRgetval(opcode, cpu), 1)
+        cpu.P = cpu.P & ()
