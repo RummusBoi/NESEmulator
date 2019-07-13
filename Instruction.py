@@ -5,6 +5,9 @@ import CPU
 
 bitch = 2
 
+#abstract Instruction super class. Each instruction provides an implementation of the class and a unique execution function
+#which is called upon instruction execution.
+
 class Instruction(ABC):
 
     @abstractmethod
@@ -120,7 +123,7 @@ class CMP(Instruction):
             else:
                 cpu.P = (cpu.P & 0b11111100) | 0b01
         
-class LDA(Instruction):
+class SBC(Instruction):
     def execute(self, opcode: bytes, cpu: CPU): 
         carryflag = 1
         ALUMemHelper (lambda a, b: a - b - (1 - carryflag), opcode, cpu)
@@ -132,20 +135,20 @@ class LDA(Instruction):
 # memory function for getting memory content for control operations. Ordering is the following:
 #TODO this needs to return VALUE at memory location, NOT the ADDRESS
 getMemArray = [
-    lambda cpu, nextbytes: [(cpu.PC + 1), 2],
-    lambda cpu, nextbytes: [(nextbytes[0]), 2],
+    lambda cpu, nextbytes: [nextbytes[0], 2],
+    lambda cpu, nextbytes: [cpu.ram.read_bytes(nextbytes[0], 1), 2],
     lambda cpu, nextbytes: [0x0, 2],
-    lambda cpu, nextbytes: [(nextbytes[0] << 8 + nextbytes[1][0]), 3],
+    lambda cpu, nextbytes: [cpu.ram.read_bytes(nextbytes[0] << 8 + nextbytes[1][0], 1), 3],
     lambda cpu, nextbytes: [0x0,2], #relative addressing mode. Will be implemented in the individual instruction cases.
-    lambda cpu, nextbytes: [(nextbytes[0] + cpu.X) % 256, 2],
+    lambda cpu, nextbytes: [cpu.ram.read_bytes((nextbytes[0] + cpu.X) % 256, 1), 2],
     lambda cpu, nextbytes: [0x0, 2],
-    lambda cpu, nextbytes: [(nextbytes[0] + cpu.X), 3]
+    lambda cpu, nextbytes: [cpu.ram.read_bytes((nextbytes[0] + cpu.X), 1), 3]
 ]
 
 def CTRgetval(opcode: bytes, cpu: CPU.CPU) -> bytes:
     code = (opcode & 0b11100) >> 2
     nextbytes = cpu.instructions[cpu.PC + 1:cpu.PC + 1 + 2]
-    val = getMemArray[code](cpu, nextbytes)  
+    val = getMemArray[code](cpu, nextbytes)
     return val
 
 class PHP(Instruction):
@@ -160,7 +163,7 @@ class BPL(Instruction):
     def execute(self, opcode, cpu):
         offset = cpu.instructions(cpu.PC + 1)
         if(cpu.P & 0b00000010 == 0b00000010):
-            cpu.PC += offset - 128
+            cpu.PC += offset - 127
         else:
             cpu.PC += 2
 
@@ -170,8 +173,8 @@ class CLC(Instruction):
 
 class JSR(Instruction):
     def execute(self, opcode, cpu):
-        loc = cpu.instructions[self.pc + 1:self.pc + 3]
-        cpu.push(self.pc + 2)
+        loc = cpu.instructions[cpu.pc + 1:cpu.pc + 3]
+        cpu.push(cpu.pc + 2)
         self.pc = loc
 
 class BIT(Instruction):
@@ -189,7 +192,7 @@ class BMI(Instruction):
     def execute(self, opcode, cpu):
         offset = cpu.instructions(cpu.PC + 1)
         if(cpu.P & 0b10000000 == 0b10000000):
-            cpu.PC += offset - 128
+            cpu.PC += offset - 127
         else:
             cpu.PC += 2
 
@@ -225,7 +228,7 @@ class BVC(Instruction):
     def execute(self, opcode, cpu):
         offset = cpu.instructions(cpu.PC + 1)
         if(cpu.P & 0b01000000 == 0b00000000):
-            cpu.PC += offset - 128
+            cpu.PC += offset - 127
         else:
             cpu.PC += 2
 
@@ -242,7 +245,7 @@ class BVS(Instruction):
     def execute(self, opcode, cpu):
         offset = cpu.instructions[cpu.PC + 1]
         if(cpu.P & 0b01000000 == 0b01000000):
-            cpu.PC = cpu.PC + offset
+            cpu.PC = cpu.PC + offset - 127
         else:
             cpu.PC += 2
 
@@ -258,7 +261,7 @@ class STY(Instruction):
 class TYA(Instruction):
     def execute(self, opcode, cpu):
         cpu.A = cpu.Y
-        if(A == 0):
+        if(cpu.A == 0):
             cpu.P = cpu.P | 0b00000010
         cpu.P = (cpu.P & 0b01111111) | (cpu.A & 0b10000000)
 
@@ -286,7 +289,7 @@ class BCC(Instruction):
     def execute(self, opcode, cpu):
         offset = cpu.instructions[cpu.PC + 1]
         if(cpu.P & 0b10000000 == 0b00000000):
-            cpu.PC = cpu.PC + offset
+            cpu.PC = cpu.PC + offset - 127
         else:
             cpu.PC += 2
 
@@ -302,7 +305,7 @@ class BCS(Instruction):
     def execute(self, opcode, cpu):
         offset = cpu.instructions[cpu.PC + 1]
         if(cpu.P & 0b10000000 == 0b10000000):
-            cpu.PC = cpu.PC + offset
+            cpu.PC = cpu.PC + offset - 127
         else:
             cpu.PC += 2
 
@@ -334,7 +337,7 @@ class BNE(Instruction):
     def execute(self, opcode, cpu):
         offset = cpu.instructions[cpu.PC + 1]
         if(cpu.P & 0b00000010 == 0b00000000):
-            cpu.PC = cpu.PC + offset
+            cpu.PC = cpu.PC + offset - 127
         else:
             cpu.PC += 2
 
@@ -342,7 +345,7 @@ class BEQ(Instruction):
     def execute(self, opcode, cpu):
         offset = cpu.instructions[cpu.PC + 1]
         if(cpu.P & 0b00000010 == 0b00000010):
-            cpu.PC = cpu.PC + offset
+            cpu.PC = cpu.PC + offset - 127
         else:
             cpu.PC += 2
 
@@ -376,5 +379,18 @@ class CPX(Instruction):
 
 class ASL(Instruction):
     def execute(self, opcode, cpu):
-        val = cpu.ram.read_bytes(CTRgetval(opcode, cpu), 1)
-        cpu.P = cpu.P & ()
+        val = 0
+        if(opcode != 0x0A):
+            val = cpu.ram.read_bytes(CTRgetval(opcode, cpu), 1)
+        else:
+            val = cpu.A
+        cpu.P = cpu.P & (0b11111110) | ((val & 0b10000000) >> 7)
+        val = val << 1
+        cpu.A = val
+        if(val == 0):
+            cpu.P = cpu.P | 0b00000010
+        else:
+            cpu.P = cpu.P & 0b11111101
+        cpu.P = cpu.P & 0b11111101 | (val >> 7 << 1)
+        
+            
